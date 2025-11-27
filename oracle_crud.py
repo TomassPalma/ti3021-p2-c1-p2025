@@ -79,4 +79,4 @@ for t in tables:
 
 def create_cliente(id_cliente, nombre, apellido, telefono, email):
     sql = ("INSERT INTO CLIENTE "
-           "(id_cliente, nombre, apellido, telefono, email) "
+           "(id_cliente, nombre, apellido, telefono, email) ")
