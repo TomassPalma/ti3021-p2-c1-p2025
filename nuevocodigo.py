@@ -1,5 +1,3 @@
-# codigocrud.py con MENÚ e inputs para CRUD de todas las tablas
-
 import oracledb
 import os
 from abc import ABC, abstractmethod
@@ -23,8 +21,8 @@ class DatabaseError(Exception):
 #                      CLIENTE
 # =====================================================
 class Cliente:
-    def __init__(self, id_cliente, nombre, telefono=None, correo=None):
-        self.__id_cliente = id_cliente
+    def __init__(self, id_cliente: str, nombre: str, telefono=None, correo=None):
+        self.__id_cliente = id_cliente  # ahora string
         self.__nombre = nombre
         self.__telefono = telefono
         self.__correo = correo
@@ -76,7 +74,7 @@ class ClienteRepository:
             raise DatabaseError(f"Error actualizando cliente: {e}")
 
     @staticmethod
-    def eliminar(id_cliente):
+    def eliminar(id_cliente: str):
         try:
             with get_connection() as conn:
                 with conn.cursor() as cur:
@@ -86,7 +84,7 @@ class ClienteRepository:
             raise DatabaseError(f"Error eliminando cliente: {e}")
 
     @staticmethod
-    def obtener_por_id(id_cliente):
+    def obtener_por_id(id_cliente: str):
         sql = "SELECT id_cliente, nombre, telefono, correo FROM CLIENTE WHERE id_cliente=:id"
         try:
             with get_connection() as conn:
@@ -237,7 +235,7 @@ def menu():
         opc = input("Seleccione opción: ")
 
         if opc == "1":
-            idc = int(input("ID cliente: "))
+            idc = input("ID cliente (puede tener guion): ")
             nom = input("Nombre: ")
             tel = input("Teléfono: ")
             cor = input("Correo: ")
@@ -245,7 +243,7 @@ def menu():
             print("Cliente creado")
 
         elif opc == "2":
-            idc = int(input("ID cliente a actualizar: "))
+            idc = input("ID cliente a actualizar: ")
             nom = input("Nuevo nombre: ")
             tel = input("Nuevo teléfono: ")
             cor = input("Nuevo correo: ")
@@ -253,7 +251,7 @@ def menu():
             print("Cliente actualizado")
 
         elif opc == "3":
-            idc = int(input("ID cliente a eliminar: "))
+            idc = input("ID cliente a eliminar: ")
             ClienteRepository.eliminar(idc)
             print("Cliente eliminado")
 
@@ -263,8 +261,8 @@ def menu():
                 print(c)
 
         elif opc == "5":
-            num = int(input("Número pedido: "))
-            idc = int(input("ID cliente: "))
+            num = input("Número pedido: ")
+            idc = input("ID cliente: ")
             cli = ClienteRepository.obtener_por_id(idc)
             if not cli:
                 print("Cliente no existe")
@@ -293,7 +291,7 @@ def menu():
             print("Pedido creado")
 
         elif opc == "6":
-            num = int(input("Número de pedido a actualizar: "))
+            num = input("Número de pedido a actualizar: ")
             pedido = PedidoRepository.obtener_por_id(num)
             if not pedido:
                 print("No existe ese pedido")
@@ -318,7 +316,7 @@ def menu():
             print("Pedido actualizado")
 
         elif opc == "7":
-            num = int(input("Número pedido a eliminar: "))
+            num = input("Número pedido a eliminar: ")
             PedidoRepository.eliminar(num)
             print("Pedido eliminado")
 
@@ -337,4 +335,3 @@ def menu():
 
 if __name__ == "__main__":
     menu()
-
