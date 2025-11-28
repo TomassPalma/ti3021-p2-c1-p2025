@@ -21,8 +21,8 @@ class DatabaseError(Exception):
 #                      CLIENTE
 # =====================================================
 class Cliente:
-    def __init__(self, id_cliente: str, nombre: str, telefono=None, correo=None):
-        self.__id_cliente = id_cliente  # ahora string
+    def __init__(self, id_cliente: str, nombre: str, telefono=int, correo=str):
+        self.__id_cliente = id_cliente 
         self.__nombre = nombre
         self.__telefono = telefono
         self.__correo = correo
