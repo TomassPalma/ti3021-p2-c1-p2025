@@ -17,32 +17,44 @@ def get_connection():
 class DatabaseError(Exception):
     pass
 
+
 # =====================================================
 #                      CLIENTE
 # =====================================================
 class Cliente:
-    def __init__(self, id_cliente: str, nombre: str, telefono=int, correo=str):
-        self.__id_cliente = id_cliente 
+    def __init__(self, id_cliente: str, nombre: str, telefono=None, correo=None):
+        self.__id_cliente = id_cliente
         self.__nombre = nombre
         self.__telefono = telefono
         self.__correo = correo
 
     @property
-    def id_cliente(self): return self.__id_cliente
+    def id_cliente(self):
+        return self.__id_cliente
+
     @property
-    def nombre(self): return self.__nombre
+    def nombre(self):
+        return self.__nombre
+
     @nombre.setter
-    def nombre(self, valor): self.__nombre = valor
+    def nombre(self, valor):
+        self.__nombre = valor
 
     @property
-    def telefono(self): return self.__telefono
+    def telefono(self):
+        return self.__telefono
+
     @telefono.setter
-    def telefono(self, valor): self.__telefono = valor
+    def telefono(self, valor):
+        self.__telefono = valor
 
     @property
-    def correo(self): return self.__correo
+    def correo(self):
+        return self.__correo
+
     @correo.setter
-    def correo(self, valor): self.__correo = valor
+    def correo(self, valor):
+        self.__correo = valor
 
     def __str__(self):
         return f"Cliente[{self.__id_cliente}] - {self.__nombre} - {self.__telefono} - {self.__correo}"
@@ -55,8 +67,11 @@ class ClienteRepository:
         try:
             with get_connection() as conn:
                 with conn.cursor() as cur:
-                    cur.execute(sql, id=cliente.id_cliente, nombre=cliente.nombre,
-                                tel=cliente.telefono, cor=cliente.correo)
+                    cur.execute(sql,
+                                id=cliente.id_cliente,
+                                nombre=cliente.nombre,
+                                tel=cliente.telefono,
+                                cor=cliente.correo)
                 conn.commit()
         except oracledb.DatabaseError as e:
             raise DatabaseError(f"Error creando cliente: {e}")
@@ -67,8 +82,11 @@ class ClienteRepository:
         try:
             with get_connection() as conn:
                 with conn.cursor() as cur:
-                    cur.execute(sql, nom=cliente.nombre, tel=cliente.telefono,
-                                cor=cliente.correo, id=cliente.id_cliente)
+                    cur.execute(sql,
+                                nom=cliente.nombre,
+                                tel=cliente.telefono,
+                                cor=cliente.correo,
+                                id=cliente.id_cliente)
                 conn.commit()
         except oracledb.DatabaseError as e:
             raise DatabaseError(f"Error actualizando cliente: {e}")
@@ -110,6 +128,7 @@ class ClienteRepository:
         except oracledb.DatabaseError as e:
             raise DatabaseError(f"Error listando clientes: {e}")
 
+
 # =====================================================
 #                      PEDIDOS
 # =====================================================
@@ -124,6 +143,7 @@ class Pedido(ABC):
     def procesar(self):
         pass
 
+
 class PedidoEnLocal(Pedido):
     def __init__(self, numeroPedido, cliente, numeroMesa, fecha=None, totalPagar=0):
         super().__init__(numeroPedido, cliente, fecha, totalPagar)
@@ -132,6 +152,7 @@ class PedidoEnLocal(Pedido):
     def procesar(self):
         print(f"Pedido en local #{self.numeroPedido} - Mesa {self.numeroMesa}")
 
+
 class PedidoParaLlevar(Pedido):
     def __init__(self, numeroPedido, cliente, tiempoEstimadoRetiro, fecha=None, totalPagar=0):
         super().__init__(numeroPedido, cliente, fecha, totalPagar)
@@ -139,6 +160,7 @@ class PedidoParaLlevar(Pedido):
 
     def procesar(self):
         print(f"Pedido para llevar #{self.numeroPedido} - Retiro en {self.tiempoEstimadoRetiro}")
+
 
 class PedidoDespacho(Pedido):
     def __init__(self, numeroPedido, cliente, direccion, fecha=None, totalPagar=0):
@@ -150,15 +172,22 @@ class PedidoDespacho(Pedido):
 
 
 class PedidoRepository:
+
+    # ------------------------
+    # CREAR
+    # ------------------------
     @staticmethod
     def crear(pedido: Pedido):
         try:
             with get_connection() as conn:
                 with conn.cursor() as cur:
-                    cur.execute(
-                        "INSERT INTO PEDIDO (numeroPedido, id_cliente, fecha, totalPagar) VALUES (:num, :idc, SYSDATE, :tot)",
-                        num=pedido.numeroPedido, idc=pedido.cliente.id_cliente, tot=pedido.totalPagar
-                    )
+
+                    cur.execute("""
+                        INSERT INTO PEDIDO (numeroPedido, id_cliente, fecha, totalPagar)
+                        VALUES (:num, :idc, SYSDATE, :tot)
+                    """, num=pedido.numeroPedido,
+                         idc=pedido.cliente.id_cliente,
+                         tot=pedido.totalPagar)
 
                     if isinstance(pedido, PedidoEnLocal):
                         cur.execute("INSERT INTO PEDIDO_EN_LOCAL (numeroPedido, numeroMesa) VALUES (:n,:m)",
@@ -171,15 +200,82 @@ class PedidoRepository:
                     elif isinstance(pedido, PedidoDespacho):
                         cur.execute("INSERT INTO PEDIDO_DESPACHO (numeroPedido, direccion) VALUES (:n,:d)",
                                     n=pedido.numeroPedido, d=pedido.direccion)
+
                 conn.commit()
+
         except oracledb.DatabaseError as e:
             raise DatabaseError(f"Error creando pedido: {e}")
 
+    # ------------------------
+    # OBTENER POR ID
+    # ------------------------
+    @staticmethod
+    def obtener_por_id(numero):
+        try:
+            with get_connection() as conn:
+                with conn.cursor() as cur:
+
+                    cur.execute("SELECT numeroPedido, id_cliente, fecha, totalPagar FROM PEDIDO WHERE numeroPedido=:n",
+                                n=numero)
+                    row = cur.fetchone()
+
+                    if not row:
+                        return None
+
+                    cliente = ClienteRepository.obtener_por_id(row[1])
+                    if not cliente:
+                        return None
+
+                    # Verificar tipo de pedido
+                    cur.execute("SELECT numeroMesa FROM PEDIDO_EN_LOCAL WHERE numeroPedido=:n", n=numero)
+                    r = cur.fetchone()
+                    if r:
+                        return PedidoEnLocal(row[0], cliente, r[0], fecha=row[2], totalPagar=row[3])
+
+                    cur.execute("SELECT tiempoEstimadoRetiro FROM PEDIDO_PARA_LLEVAR WHERE numeroPedido=:n", n=numero)
+                    r = cur.fetchone()
+                    if r:
+                        return PedidoParaLlevar(row[0], cliente, r[0], fecha=row[2], totalPagar=row[3])
+
+                    cur.execute("SELECT direccion FROM PEDIDO_DESPACHO WHERE numeroPedido=:n", n=numero)
+                    r = cur.fetchone()
+                    if r:
+                        return PedidoDespacho(row[0], cliente, r[0], fecha=row[2], totalPagar=row[3])
+
+        except oracledb.DatabaseError as e:
+            raise DatabaseError(f"Error obteniendo pedido: {e}")
+
+    # ------------------------
+    # LISTAR TODOS
+    # ------------------------
+    @staticmethod
+    def listar_todos():
+        pedidos = []
+        try:
+            with get_connection() as conn:
+                with conn.cursor() as cur:
+
+                    cur.execute("SELECT numeroPedido FROM PEDIDO ORDER BY numeroPedido")
+
+                    for (num,) in cur:
+                        p = PedidoRepository.obtener_por_id(num)
+                        if p:
+                            pedidos.append(p)
+
+            return pedidos
+
+        except oracledb.DatabaseError as e:
+            raise DatabaseError(f"Error listando pedidos: {e}")
+
+    # ------------------------
+    # ACTUALIZAR
+    # ------------------------
     @staticmethod
     def actualizar(pedido: Pedido):
         try:
             with get_connection() as conn:
                 with conn.cursor() as cur:
+
                     cur.execute("UPDATE PEDIDO SET totalPagar=:t WHERE numeroPedido=:n",
                                 t=pedido.totalPagar, n=pedido.numeroPedido)
 
@@ -194,10 +290,15 @@ class PedidoRepository:
                     elif isinstance(pedido, PedidoDespacho):
                         cur.execute("UPDATE PEDIDO_DESPACHO SET direccion=:d WHERE numeroPedido=:n",
                                     d=pedido.direccion, n=pedido.numeroPedido)
+
                 conn.commit()
+
         except oracledb.DatabaseError as e:
             raise DatabaseError(f"Error actualizando pedido: {e}")
 
+    # ------------------------
+    # ELIMINAR
+    # ------------------------
     @staticmethod
     def eliminar(n):
         try:
